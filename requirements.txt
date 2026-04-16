@@ -1,0 +1,20 @@
+# ---------------------------------------------------------
+# Frontend Dependencies (GUI, Audio, Build)
+# ---------------------------------------------------------
+PySide6>=6.5.0
+sounddevice>=0.4.6
+soundfile>=0.12.1
+requests>=2.31.0
+numpy>=1.24.0
+pyinstaller>=6.3.0
+
+# ---------------------------------------------------------
+# Backend Dependencies (API, ASR Model, PyTorch)
+# ---------------------------------------------------------
+fastapi
+uvicorn
+pydantic
+qwen-asr
+torch
+torchaudio
+modelscope
