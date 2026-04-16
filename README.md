@@ -40,12 +40,8 @@ python backend/main.py
 
 ## 🚀 前端界面使用指南
 
-### 1. 安装前端依赖
-```bash
-pip install -r requirements.txt
-```
-
 ### 2. 运行前端悬浮窗
+（由于环境已统一安装，您可以直接运行）
 ```bash
 python app/main.py
 ```
