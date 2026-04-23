@@ -7,6 +7,7 @@ soundfile>=0.12.1
 requests>=2.31.0
 numpy>=1.24.0
 pyinstaller>=6.3.0
+python-docx
 
 # ---------------------------------------------------------
 # Backend Dependencies (API, ASR Model, PyTorch)
