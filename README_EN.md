@@ -214,18 +214,6 @@ python app/main.py
 
 ---
 
-## 📦 Packaging the Frontend as a Standalone EXE
-
-To package the frontend UI into a standalone executable without requiring a Python environment, use the automated packaging script.
-
-**On Windows, simply double-click in the project root:**
-
-> **`build_exe.bat`**
-
-The script will automatically clean caches and use `PyInstaller` to package the project. After successful packaging, find **`ASR_Floating_App.exe`** in the **`dist/ASR_Floating_App/`** directory.
-
----
-
 ## 📚 References
 
 The backend speech recognition capability is powered by Alibaba Tongyi Lab's open-source **Qwen3-ASR** model. Qwen3-ASR is a multilingual speech recognition system supporting 52 languages and dialects.

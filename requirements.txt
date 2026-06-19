@@ -8,6 +8,8 @@ requests>=2.31.0
 numpy>=1.24.0
 pyinstaller>=6.3.0
 python-docx
+pyyaml
+pynput
 
 # ---------------------------------------------------------
 # Backend Dependencies (API, ASR Model, PyTorch)
@@ -19,3 +21,4 @@ qwen-asr
 torch
 torchaudio
 modelscope
+faster-whisper

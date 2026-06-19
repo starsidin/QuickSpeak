@@ -7,10 +7,13 @@ __pycache__/
 # PyInstaller
 build/
 dist/
+Dist/
 *.spec
 *.pkg
 *.toc
 *.pyz
+build_exe.bat
+build_nuitka.bat
 
 # VS Code / IDEs
 .vscode/
@@ -42,3 +45,14 @@ venv.bak/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# API Keys (Do not commit API configuration)
+app/api_config.py
+app/api_key.json
+app/api_key_config.py
+
+# Local-only files
+.trae/
+*.mp3
+PROJECT_EVALUATION.md
+QuickSpeak-*.zip
