@@ -50,6 +50,7 @@ Thumbs.db
 app/api_config.py
 app/api_key.json
 app/api_key_config.py
+app/data/
 
 # Local-only files
 .trae/

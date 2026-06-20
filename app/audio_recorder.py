@@ -2,6 +2,7 @@ import sounddevice as sd
 import soundfile as sf
 import queue
 import threading
+import numpy as np
 from PySide6.QtCore import QObject, Signal
 
 class AudioRecorder(QObject):
@@ -12,6 +13,7 @@ class AudioRecorder(QObject):
     recording_stopped = Signal(str)  # 发送临时文件路径
     recording_canceled = Signal()    # 录音被取消的信号
     error_occurred = Signal(str)
+    volume_level = Signal(float)     # 音量级别信号 (0.0-1.0)
 
     def __init__(self, temp_wav_path: str, device_index: int = None):
         super().__init__()
@@ -42,10 +44,16 @@ class AudioRecorder(QObject):
         self.device_index = device_index
 
     def _audio_callback(self, indata, frames, time, status):
-        """sounddevice 的音频回调，收集音频数据"""
+        """sounddevice 的音频回调，收集音频数据并计算音量"""
         if status:
             print(status)
         self._q.put(indata.copy())
+        
+        # 计算音量级别 (RMS)
+        volume_norm = np.linalg.norm(indata) / np.sqrt(len(indata))
+        # 归一化到 0-1 范围，假设最大音量约为 0.5
+        level = min(volume_norm * 2.0, 1.0)
+        self.volume_level.emit(level)
 
     def _record_thread(self):
         """实际执行录音的后台线程"""

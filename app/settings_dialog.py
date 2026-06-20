@@ -2,22 +2,101 @@ import os
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QLineEdit, QComboBox, QCheckBox, QFileDialog, QGroupBox,
-    QMessageBox
+    QMessageBox, QProgressBar, QTabWidget, QWidget
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QThread, Signal
+from config import APP_NAME, APP_VERSION, APP_AUTHOR
+
+
+class MicTestThread(QThread):
+    """后台线程测试麦克风是否有声音"""
+    level_updated = Signal(int)  # 音量级别 0-100
+    finished_signal = Signal(bool, str)  # (成功, 消息)
+
+    def __init__(self, device_index=None, duration=3.0, parent=None):
+        super().__init__(parent)
+        self.device_index = device_index
+        self.duration = duration
+        self._stop_flag = False
+
+    def stop(self):
+        self._stop_flag = True
+
+    def run(self):
+        try:
+            import sounddevice as sd
+            import numpy as np
+
+            samplerate = 16000
+            channels = 1
+            blocksize = 1024
+            max_amplitude = 0.0
+            found_sound = False
+
+            def callback(indata, frames, time_info, status):
+                nonlocal max_amplitude, found_sound
+                if self._stop_flag:
+                    raise sd.CallbackStop()
+                amp = np.abs(indata).mean() * 100
+                level = min(int(amp * 5), 100)
+                self.level_updated.emit(level)
+                if amp > 0.01:
+                    found_sound = True
+
+            with sd.InputStream(
+                samplerate=samplerate,
+                channels=channels,
+                blocksize=blocksize,
+                callback=callback,
+                device=self.device_index
+            ):
+                import time
+                start = time.time()
+                while time.time() - start < self.duration and not self._stop_flag:
+                    QThread.msleep(50)
+
+            if found_sound:
+                self.finished_signal.emit(True, "麦克风测试完成，检测到声音输入")
+            else:
+                self.finished_signal.emit(False, "未检测到声音输入，请检查麦克风")
+        except Exception as e:
+            self.finished_signal.emit(False, f"麦克风测试失败: {str(e)}")
 
 
 class SettingsDialog(QDialog):
-    """设置对话框：默认保存目录、录音快捷键、ASR 引擎切换"""
+    """设置对话框：默认保存目录、录音快捷键、ASR 引擎切换、麦克风选择、关于"""
 
     def __init__(self, parent=None, current_settings=None):
         super().__init__(parent)
         self.setWindowTitle("设置")
         self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
-        self.setMinimumSize(420, 380)
+        self.setMinimumSize(500, 600)
         self.setStyleSheet("""
             QDialog {
                 background-color: #f5f9ff;
+            }
+            QTabWidget::pane {
+                border: 1px solid #dcdcdc;
+                background-color: white;
+                border-radius: 4px;
+            }
+            QTabBar::tab {
+                background-color: #e8f0fe;
+                color: #4A90E2;
+                padding: 8px 20px;
+                border: none;
+                border-top-left-radius: 4px;
+                border-top-right-radius: 4px;
+                margin-right: 2px;
+                font-weight: bold;
+            }
+            QTabBar::tab:selected {
+                background-color: #4A90E2;
+                color: white;
+            }
+            QTabBar::tab:hover {
+                background-color: #357ABD;
+                color: white;
             }
             QGroupBox {
                 font-weight: bold;
@@ -65,11 +144,22 @@ class SettingsDialog(QDialog):
                 color: #555555;
                 font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
             }
+            QProgressBar {
+                border: 1px solid #dcdcdc;
+                border-radius: 4px;
+                text-align: center;
+                background-color: #ffffff;
+            }
+            QProgressBar::chunk {
+                background-color: #4A90E2;
+                border-radius: 3px;
+            }
         """)
 
         self.settings = current_settings or {}
         self._recording_hotkey = False
         self._captured_key = self.settings.get("hotkey_key", "")
+        self._mic_test_thread = None
 
         self.init_ui()
         self.adjustSize()
@@ -78,6 +168,91 @@ class SettingsDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.setSpacing(12)
         layout.setContentsMargins(16, 16, 16, 16)
+
+        # 创建标签页控件
+        self.tab_widget = QTabWidget()
+        
+        # 创建设置页面
+        settings_page = QWidget()
+        self.init_settings_page(settings_page)
+        
+        # 创建关于页面
+        about_page = QWidget()
+        self.init_about_page(about_page)
+        
+        # 添加标签页
+        self.tab_widget.addTab(settings_page, "设置")
+        self.tab_widget.addTab(about_page, "关于")
+        
+        layout.addWidget(self.tab_widget)
+
+        # --- 底部按钮 ---
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
+
+        btn_cancel = QPushButton("取消")
+        btn_cancel.setStyleSheet("""
+            QPushButton {
+                background-color: #cccccc;
+                color: #333333;
+            }
+            QPushButton:hover { background-color: #bbbbbb; }
+        """)
+        btn_cancel.clicked.connect(self.reject)
+
+        btn_save = QPushButton("保存")
+        btn_save.clicked.connect(self._on_save)
+
+        btn_row.addWidget(btn_cancel)
+        btn_row.addWidget(btn_save)
+        layout.addLayout(btn_row)
+
+    def init_settings_page(self, page):
+        """初始化设置页面"""
+        layout = QVBoxLayout(page)
+        layout.setSpacing(12)
+        layout.setContentsMargins(16, 16, 16, 16)
+
+        # --- 麦克风设备选择 ---
+        mic_group = QGroupBox("麦克风设备")
+        mic_layout = QVBoxLayout(mic_group)
+
+        mic_row = QHBoxLayout()
+        mic_row.addWidget(QLabel("输入设备:"))
+        self.combo_mic = QComboBox()
+        self.combo_mic.setMinimumWidth(200)
+        mic_row.addWidget(self.combo_mic, 1)
+
+        self.btn_refresh_mic = QPushButton("刷新")
+        self.btn_refresh_mic.setFixedWidth(60)
+        self.btn_refresh_mic.clicked.connect(self._refresh_mic_devices)
+        mic_row.addWidget(self.btn_refresh_mic)
+        mic_layout.addLayout(mic_row)
+
+        # 测试区域
+        test_row = QHBoxLayout()
+        self.btn_test_mic = QPushButton("测试麦克风")
+        self.btn_test_mic.setFixedWidth(100)
+        self.btn_test_mic.clicked.connect(self._test_mic)
+        test_row.addWidget(self.btn_test_mic)
+
+        self.progress_mic = QProgressBar()
+        self.progress_mic.setRange(0, 100)
+        self.progress_mic.setValue(0)
+        self.progress_mic.setTextVisible(False)
+        self.progress_mic.setFixedHeight(16)
+        test_row.addWidget(self.progress_mic, 1)
+
+        self.lbl_mic_status = QLabel("")
+        self.lbl_mic_status.setStyleSheet("font-size: 11px; color: #999999;")
+        test_row.addWidget(self.lbl_mic_status)
+        mic_layout.addLayout(test_row)
+
+        hint_mic = QLabel("提示：选择要使用的麦克风，点击测试验证是否有声音输入")
+        hint_mic.setStyleSheet("font-size: 11px; color: #999999;")
+        mic_layout.addWidget(hint_mic)
+
+        layout.addWidget(mic_group)
 
         # --- 保存目录设置 ---
         save_group = QGroupBox("默认保存目录")
@@ -169,28 +344,223 @@ class SettingsDialog(QDialog):
         asr_layout.addLayout(asr_row)
 
         layout.addWidget(asr_group)
-
-        # --- 底部按钮 ---
         layout.addStretch()
-        btn_row = QHBoxLayout()
-        btn_row.addStretch()
 
-        btn_cancel = QPushButton("取消")
-        btn_cancel.setStyleSheet("""
-            QPushButton {
-                background-color: #cccccc;
-                color: #333333;
-            }
-            QPushButton:hover { background-color: #bbbbbb; }
+        # 初始化麦克风列表
+        self._refresh_mic_devices()
+
+    def init_about_page(self, page):
+        """初始化关于页面"""
+        layout = QVBoxLayout(page)
+        layout.setSpacing(20)
+        layout.setContentsMargins(30, 30, 30, 30)
+        layout.setAlignment(Qt.AlignCenter)
+
+        # 应用名称
+        title_label = QLabel(APP_NAME)
+        title_label.setStyleSheet("""
+            font-size: 28px;
+            font-weight: bold;
+            color: #4A90E2;
+            margin-bottom: 10px;
         """)
-        btn_cancel.clicked.connect(self.reject)
+        title_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(title_label)
 
-        btn_save = QPushButton("保存")
-        btn_save.clicked.connect(self._on_save)
+        # 版本号
+        version_label = QLabel(f"版本 {APP_VERSION}")
+        version_label.setStyleSheet("""
+            font-size: 14px;
+            color: #666666;
+            margin-bottom: 20px;
+        """)
+        version_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(version_label)
 
-        btn_row.addWidget(btn_cancel)
-        btn_row.addWidget(btn_save)
-        layout.addLayout(btn_row)
+        # 作者信息
+        author_label = QLabel(f"作者: {APP_AUTHOR}")
+        author_label.setStyleSheet("""
+            font-size: 13px;
+            color: #555555;
+            margin-bottom: 30px;
+        """)
+        author_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(author_label)
+
+        # 分隔线
+        line = QLabel()
+        line.setFixedHeight(1)
+        line.setStyleSheet("background-color: #dcdcdc;")
+        layout.addWidget(line)
+
+        # 链接区域
+        links_layout = QVBoxLayout()
+        links_layout.setSpacing(15)
+        links_layout.setContentsMargins(0, 20, 0, 0)
+
+        # 主页链接
+        homepage_btn = QPushButton("项目主页")
+        homepage_btn.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                color: #4A90E2;
+                border: none;
+                font-size: 13px;
+                text-decoration: underline;
+            }
+            QPushButton:hover {
+                color: #285A8C;
+            }
+        """)
+        homepage_btn.clicked.connect(lambda: self._open_url("https://github.com/yourusername/writervoicedown"))
+        links_layout.addWidget(homepage_btn, alignment=Qt.AlignCenter)
+
+        # 隐私政策
+        privacy_btn = QPushButton("隐私政策")
+        privacy_btn.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                color: #4A90E2;
+                border: none;
+                font-size: 13px;
+                text-decoration: underline;
+            }
+            QPushButton:hover {
+                color: #285A8C;
+            }
+        """)
+        privacy_btn.clicked.connect(lambda: self._show_privacy_policy())
+        links_layout.addWidget(privacy_btn, alignment=Qt.AlignCenter)
+
+        # 许可证
+        license_btn = QPushButton("许可证 (MIT)")
+        license_btn.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                color: #4A90E2;
+                border: none;
+                font-size: 13px;
+                text-decoration: underline;
+            }
+            QPushButton:hover {
+                color: #285A8C;
+            }
+        """)
+        license_btn.clicked.connect(lambda: self._show_license())
+        links_layout.addWidget(license_btn, alignment=Qt.AlignCenter)
+
+        layout.addLayout(links_layout)
+        layout.addStretch()
+
+    def _open_url(self, url):
+        """打开 URL"""
+        from PySide6.QtGui import QDesktopServices
+        from PySide6.QtCore import QUrl
+        QDesktopServices.openUrl(QUrl(url))
+
+    def _show_privacy_policy(self):
+        """显示隐私政策"""
+        QMessageBox.information(
+            self,
+            "隐私政策",
+            f"""{APP_NAME} 隐私政策
+
+1. 数据收集
+   - 本地模式：所有录音和识别均在本地完成，不会上传任何数据
+   - 云端模式：使用豆包 API 时，音频数据会上传至字节跳动服务器进行识别
+
+2. 数据存储
+   - 配置文件保存在 data/config.json
+   - 临时录音文件保存在 data/temp/ 目录
+   - 程序退出时会自动清理临时文件
+
+3. 第三方服务
+   - 豆包 API：仅在云端模式下使用，遵循字节跳动的隐私政策
+   - 本地后端：完全本地运行，无外部依赖
+
+4. 用户权利
+   - 您可以随时在设置中切换本地/云端模式
+   - 您可以删除 data/ 目录中的所有数据
+
+如有隐私相关问题，请联系项目维护者。"""
+        )
+
+    def _show_license(self):
+        """显示许可证"""
+        QMessageBox.information(
+            self,
+            "许可证",
+            f"""{APP_NAME} - MIT 许可证
+
+Copyright (c) 2026 {APP_AUTHOR}
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE."""
+        )
+
+    def _refresh_mic_devices(self):
+        """刷新麦克风设备列表"""
+        from audio_recorder import AudioRecorder
+        devices = AudioRecorder.get_input_devices()
+        self.combo_mic.clear()
+        self.combo_mic.addItem("系统默认", "")
+        for dev in devices:
+            self.combo_mic.addItem(dev['name'], dev['index'])
+
+        # 恢复之前选择的设备
+        saved_device = self.settings.get("microphone_device", "")
+        if saved_device:
+            for i in range(self.combo_mic.count()):
+                if str(self.combo_mic.itemData(i)) == str(saved_device):
+                    self.combo_mic.setCurrentIndex(i)
+                    break
+
+    def _test_mic(self):
+        """测试麦克风"""
+        if self._mic_test_thread and self._mic_test_thread.isRunning():
+            self._mic_test_thread.stop()
+            self._mic_test_thread.wait()
+            self.btn_test_mic.setText("测试麦克风")
+            self.progress_mic.setValue(0)
+            return
+
+        device_data = self.combo_mic.currentData()
+        device_index = int(device_data) if device_data != "" else None
+
+        self.btn_test_mic.setText("停止测试")
+        self.lbl_mic_status.setText("正在测试...")
+        self.lbl_mic_status.setStyleSheet("font-size: 11px; color: #2196F3;")
+        self.progress_mic.setValue(0)
+
+        self._mic_test_thread = MicTestThread(device_index=device_index, duration=5.0, parent=self)
+        self._mic_test_thread.level_updated.connect(self.progress_mic.setValue)
+        self._mic_test_thread.finished_signal.connect(self._on_mic_test_finished)
+        self._mic_test_thread.start()
+
+    def _on_mic_test_finished(self, success, message):
+        """麦克风测试完成"""
+        self.btn_test_mic.setText("测试麦克风")
+        if success:
+            self.lbl_mic_status.setText("✓ " + message)
+            self.lbl_mic_status.setStyleSheet("font-size: 11px; color: #4CAF50;")
+        else:
+            self.lbl_mic_status.setText("✗ " + message)
+            self.lbl_mic_status.setStyleSheet("font-size: 11px; color: #f44336;")
 
     def _browse_save_folder(self):
         folder = QFileDialog.getExistingDirectory(
@@ -278,6 +648,7 @@ class SettingsDialog(QDialog):
             "save_folder": self.txt_save_folder.text().strip(),
             "hotkey_enabled": self.chk_hotkey.isChecked(),
             "hotkey_key": self._captured_key,
+            "microphone_device": self.combo_mic.currentData(),
         }
 
         # ASR provider
@@ -296,3 +667,10 @@ class SettingsDialog(QDialog):
 
     def get_settings(self):
         return getattr(self, 'result_settings', {})
+
+    def closeEvent(self, event):
+        """关闭时停止麦克风测试"""
+        if self._mic_test_thread and self._mic_test_thread.isRunning():
+            self._mic_test_thread.stop()
+            self._mic_test_thread.wait()
+        super().closeEvent(event)
