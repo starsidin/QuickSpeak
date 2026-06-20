@@ -66,7 +66,7 @@ async def lifespan(app: FastAPI):
     yield
     print("Shutting down...")
 
-app = FastAPI(title="QuickSpeak Backend (Qwen3-ASR)", version="1.0.1", lifespan=lifespan)
+app = FastAPI(title="QuickSpeak Backend (Qwen3-ASR)", version="1.0.2", lifespan=lifespan)
 
 class ModelData(BaseModel):
     id: str

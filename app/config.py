@@ -104,5 +104,5 @@ AUTO_SAVE_FILE = str(TEMP_DIR / "autosave_content.txt")  # 自动保存的创作
 
 APP_NAME = "QuickSpeak"
 APP_DISPLAY_NAME = "说记"
-APP_VERSION = "1.0.1"
+APP_VERSION = "1.0.2"
 APP_AUTHOR = "Ranklee Studio"

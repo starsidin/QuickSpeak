@@ -1,15 +1,15 @@
 ================================================================================
-                         说记 QuickSpeak v1.0.1
+                         说记 QuickSpeak v1.0.2
 ================================================================================
 
 【适用环境】
   Windows 10/11 x64。此版本已打包 Python 和桌面端运行依赖，无需安装 Python。
 
 【快速开始】
-  1. 解压整个 QuickSpeak-v1.0.1-Windows-x64.zip。
+  1. 解压整个 QuickSpeak-v1.0.2-Windows-x64.zip。
   2. 双击 QuickSpeak\QuickSpeak.exe。
   3. 云端识别：在“设置”中填写豆包 API Key，需要联网。
-  4. 本地识别：先部署 QuickSpeak-Backend-v1.0.1，再将后端地址设为
+  4. 本地识别：先部署 QuickSpeak-Backend-v1.0.2，再将后端地址设为
      http://localhost:8000。
 
 【注意】

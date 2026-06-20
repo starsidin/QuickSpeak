@@ -390,6 +390,7 @@ class MainWindow(QMainWindow):
         self.text_asr.setPlaceholderText("识别结果将显示在这里，可直接编辑...")
         self.text_asr.setReadOnly(False)
         self.text_asr.setFixedHeight(70)
+        self.text_asr.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         
         result_header_layout = QHBoxLayout()
         lbl_result = QLabel("识别结果:")
@@ -506,12 +507,12 @@ class MainWindow(QMainWindow):
         
         self.format_toolbar_widget.hide()
 
-        text_container = QWidget()
-        text_layout = QVBoxLayout(text_container)
-        text_layout.setContentsMargins(0, 0, 15, 0)
-        text_layout.addWidget(self.format_toolbar_widget)
-        text_layout.addWidget(self.text_asr)
-        main_layout.addWidget(text_container)
+        self.text_container = QWidget()
+        self.text_layout = QVBoxLayout(self.text_container)
+        self.text_layout.setContentsMargins(0, 0, 15, 0)
+        self.text_layout.addWidget(self.format_toolbar_widget)
+        self.text_layout.addWidget(self.text_asr, 1)
+        main_layout.addWidget(self.text_container)
 
         bottom_layout = QHBoxLayout()
         
@@ -740,6 +741,12 @@ class MainWindow(QMainWindow):
         self.btn_creative.hide()
         self.btn_copy.hide()
         self.chk_auto_copy.hide()
+        # 创作模式下把工具栏以下的所有剩余空间交给文本编辑框。
+        self.text_asr.setMinimumHeight(70)
+        self.text_asr.setMaximumHeight(16777215)
+        self.text_asr.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.text_container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.centralWidget().layout().setStretchFactor(self.text_container, 1)
         self.resize(600, 450)
         
     def exit_creative_mode(self):
@@ -757,6 +764,10 @@ class MainWindow(QMainWindow):
             self.btn_copy.show()
             self.chk_auto_copy.show()
             self.text_asr.clear()
+            self.centralWidget().layout().setStretchFactor(self.text_container, 0)
+            self.text_asr.setFixedHeight(70)
+            self.text_asr.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+            self.text_container.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
             self.resize(350, 250)
 
     def toggle_bold(self):

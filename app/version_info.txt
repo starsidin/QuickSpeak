@@ -1,7 +1,7 @@
 VSVersionInfo(
   ffi=FixedFileInfo(
-    filevers=(1, 0, 1, 0),
-    prodvers=(1, 0, 1, 0),
+    filevers=(1, 0, 2, 0),
+    prodvers=(1, 0, 2, 0),
     mask=0x3f,
     flags=0x0,
     OS=0x40004,
@@ -14,11 +14,11 @@ VSVersionInfo(
       StringTable('080404B0', [
         StringStruct('CompanyName', 'Ranklee Studio'),
         StringStruct('FileDescription', '说记 QuickSpeak'),
-        StringStruct('FileVersion', '1.0.1'),
+        StringStruct('FileVersion', '1.0.2'),
         StringStruct('InternalName', 'QuickSpeak'),
         StringStruct('OriginalFilename', 'QuickSpeak.exe'),
         StringStruct('ProductName', 'QuickSpeak'),
-        StringStruct('ProductVersion', '1.0.1')
+        StringStruct('ProductVersion', '1.0.2')
       ])
     ]),
     VarFileInfo([VarStruct('Translation', [2052, 1200])])

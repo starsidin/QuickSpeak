@@ -1,7 +1,7 @@
 @echo off
 setlocal
 chcp 65001 >nul
-title QuickSpeak Backend v1.0.1
+title QuickSpeak Backend v1.0.2
 cd /d "%~dp0"
 
 where python >nul 2>nul
@@ -18,13 +18,13 @@ if not exist ".venv\Scripts\python.exe" (
 )
 
 set "PYTHON=.venv\Scripts\python.exe"
-if not exist ".venv\.quickspeak_deps_1.0.1" (
+if not exist ".venv\.quickspeak_deps_1.0.2" (
     echo [2/3] 正在安装后端依赖，首次运行需要一些时间...
     "%PYTHON%" -m pip install --upgrade pip
     if errorlevel 1 goto :failed
     "%PYTHON%" -m pip install -r requirements-backend.txt
     if errorlevel 1 goto :failed
-    type nul > ".venv\.quickspeak_deps_1.0.1"
+    type nul > ".venv\.quickspeak_deps_1.0.2"
 )
 
 echo [3/3] 正在检查模型...

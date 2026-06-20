@@ -1,4 +1,4 @@
-# QuickSpeak Backend v1.0.1
+# QuickSpeak Backend v1.0.2
 
 这是“说记 QuickSpeak”的本地 Qwen3-ASR 后端发行包，不包含模型文件。
 

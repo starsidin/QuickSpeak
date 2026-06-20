@@ -1,11 +1,11 @@
-# QuickSpeak - ASR Desktop Floating Window v1.0.1
+# QuickSpeak - ASR Desktop Floating Window v1.0.2
 
 [中文版](README.md)
 
 A modern, lightweight desktop floating window application built with Python + PySide6.
 It includes a compact **frontend UI** and a **simple backend service example**, designed to work with Alibaba's open-source **Qwen3-ASR-1.7B** speech recognition model.
 
-## 🌟 Latest Updates (v1.0.1)
+## 🌟 Latest Updates (v1.0.2)
 
 - **Rich Text Editor (Creative Mode)**:
   - Click the "Creative Mode" button to expand the floating window into a spacious editing area.
