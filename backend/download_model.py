@@ -1,29 +1,89 @@
-import os
-from modelscope import snapshot_download
+"""Download the Qwen3-ASR model for the QuickSpeak backend."""
 
-def main():
-    model_id = 'Qwen/Qwen3-ASR-1.7B'
-    
-    # 获取当前脚本所在目录，并在该目录下创建 models/Qwen3-ASR-1.7B 文件夹用于存放模型
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    local_dir = os.path.join(base_dir, 'models', 'Qwen3-ASR-1.7B')
-    
-    print("==================================================")
-    print(f"开始通过 ModelScope 下载模型: {model_id}")
-    print(f"模型将保存至本地目录: {local_dir}")
-    print("这可能需要几分钟的时间，请耐心等待（约 3.4 GB）...")
-    print("==================================================")
-    
-    # 下载模型
+import argparse
+import os
+import sys
+from pathlib import Path
+
+
+MODEL_ID = "Qwen/Qwen3-ASR-1.7B"
+BASE_DIR = Path(__file__).resolve().parent
+MODEL_DIR = BASE_DIR / "models" / "Qwen3-ASR-1.7B"
+
+
+def model_is_ready() -> bool:
+    """Use model metadata and at least one weight file as a completeness guard."""
+    return (
+        (MODEL_DIR / "config.json").is_file()
+        and any(MODEL_DIR.glob("*.safetensors"))
+    )
+
+
+def choose_source() -> str:
+    print("\nQuickSpeak 后端首次启动需要下载 Qwen3-ASR-1.7B 模型（约 3.4 GB）。")
+    print("  1. ModelScope（推荐，中国大陆网络优先）")
+    print("  2. Hugging Face（国际网络）")
+    while True:
+        choice = input("请选择下载源 [1/2，默认 1]: ").strip() or "1"
+        if choice == "1":
+            return "modelscope"
+        if choice == "2":
+            return "huggingface"
+        print("输入无效，请输入 1 或 2。")
+
+
+def download_from_modelscope() -> str:
+    from modelscope import snapshot_download
+
+    return snapshot_download(MODEL_ID, local_dir=str(MODEL_DIR))
+
+
+def download_from_huggingface() -> str:
+    from huggingface_hub import snapshot_download
+
+    return snapshot_download(repo_id=MODEL_ID, local_dir=str(MODEL_DIR))
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="下载 QuickSpeak 后端 Qwen3-ASR 模型")
+    parser.add_argument(
+        "--source",
+        choices=("modelscope", "huggingface"),
+        help="跳过交互，直接指定下载源",
+    )
+    parser.add_argument("--force", action="store_true", help="即使模型已存在也重新下载")
+    args = parser.parse_args()
+
+    if model_is_ready() and not args.force:
+        print(f"模型已存在：{MODEL_DIR}")
+        return 0
+
+    source = args.source or choose_source()
+    MODEL_DIR.mkdir(parents=True, exist_ok=True)
+    source_name = "ModelScope" if source == "modelscope" else "Hugging Face"
+    print(f"\n正在通过 {source_name} 下载 {MODEL_ID}")
+    print(f"保存目录：{MODEL_DIR}")
+
     try:
-        model_dir = snapshot_download(model_id, local_dir=local_dir)
-        print("\n==================================================")
-        print(f"✅ 模型下载并完整校验成功！")
-        print(f"✅ 本地路径: {model_dir}")
-        print("✅ 您现在可以运行 main.py 来启动后端服务了。")
-        print("==================================================")
-    except Exception as e:
-        print(f"\n❌ 下载模型时出现错误: {str(e)}")
+        if source == "modelscope":
+            result = download_from_modelscope()
+        else:
+            result = download_from_huggingface()
+    except KeyboardInterrupt:
+        print("\n下载已取消。")
+        return 130
+    except Exception as exc:
+        print(f"\n下载失败：{exc}")
+        print("可重新运行本脚本，并尝试另一个下载源。")
+        return 1
+
+    if not model_is_ready():
+        print("下载结束，但模型文件不完整，请重新下载。")
+        return 1
+
+    print(f"\n模型下载完成：{result}")
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

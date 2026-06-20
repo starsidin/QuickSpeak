@@ -51,12 +51,14 @@ class BaseASRClient(QObject):
 
 class LocalASRClient(BaseASRClient):
     """
-    本地后端 ASR 客户端，调用本地 FastAPI 服务（支持千问/Whisper）
+    本地后端 ASR 客户端，调用本地 FastAPI Qwen 服务。
+
+    Whisper 自 v1.0.1 起已舍弃；传入旧配置时自动回退到 Qwen。
     """
     def __init__(self, backend_url: str = "http://localhost:8000", model: str = "qwen"):
         super().__init__()
         self.backend_url = backend_url.rstrip("/")
-        self.model = model
+        self.model = "qwen" if model == "whisper" else model
 
     def check_health(self):
         def _check():
@@ -131,21 +133,8 @@ class LocalASRClient(BaseASRClient):
                 with open(wav_path, "rb") as f:
                     audio_data = base64.b64encode(f.read()).decode("utf-8")
 
-                if self.model == "whisper":
-                    # Whisper 使用 /v1/audio/transcriptions 端点
-                    resp = self._post_json_with_fallback(
-                        ["v1/audio/transcriptions", "audio/transcriptions"],
-                        {"audio_data": audio_data, "format": audio_format}
-                    )
-                    if resp.status_code == 200:
-                        result = self._parse_json_response(resp)
-                        self.request_finished.emit(result.get("text", ""))
-                    else:
-                        detail = self._extract_error_detail(resp)
-                        self.request_failed.emit(f"本地 Whisper 转写失败: {detail}", ERROR_UNKNOWN)
-                else:
-                    # 千问使用 /chat/completions 端点
-                    payload = {
+                # 千问使用 /chat/completions 端点。Whisper 已舍弃。
+                payload = {
                         "model": "Qwen3-ASR-1.7B",
                         "messages": [
                             {
@@ -161,21 +150,21 @@ class LocalASRClient(BaseASRClient):
                             }
                         ]
                     }
-                    resp = self._post_json_with_fallback(
-                        ["chat/completions", "v1/chat/completions"],
-                        payload
-                    )
-                    if resp.status_code == 200:
-                        result = self._parse_json_response(resp)
-                        choices = result.get("choices", [])
-                        if choices:
-                            text = choices[0].get("message", {}).get("content", "")
-                            self.request_finished.emit(text)
-                        else:
-                            self.request_failed.emit("本地千问返回为空", ERROR_UNKNOWN)
+                resp = self._post_json_with_fallback(
+                    ["chat/completions", "v1/chat/completions"],
+                    payload
+                )
+                if resp.status_code == 200:
+                    result = self._parse_json_response(resp)
+                    choices = result.get("choices", [])
+                    if choices:
+                        text = choices[0].get("message", {}).get("content", "")
+                        self.request_finished.emit(text)
                     else:
-                        detail = self._extract_error_detail(resp)
-                        self.request_failed.emit(f"本地千问转写失败: {detail}", ERROR_UNKNOWN)
+                        self.request_failed.emit("本地千问返回为空", ERROR_UNKNOWN)
+                else:
+                    detail = self._extract_error_detail(resp)
+                    self.request_failed.emit(f"本地千问转写失败: {detail}", ERROR_UNKNOWN)
 
             except requests.exceptions.ConnectionError:
                 self.request_failed.emit("后端未启动，请运行 run_backend.bat", ERROR_BACKEND)

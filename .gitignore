@@ -9,6 +9,7 @@ build/
 dist/
 Dist/
 *.spec
+!QuickSpeak.spec
 *.pkg
 *.toc
 *.pyz

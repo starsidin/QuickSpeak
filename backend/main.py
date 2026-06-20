@@ -2,7 +2,7 @@ import os
 import time
 import base64
 import tempfile
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from contextlib import asynccontextmanager
 
 import uvicorn
@@ -14,12 +14,7 @@ import torch
 # 获取当前文件所在目录，指向本地模型目录
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LOCAL_MODEL_DIR = os.path.join(BASE_DIR, "models", "Qwen3-ASR-1.7B")
-WHISPER_MODEL_DIR = os.path.join(BASE_DIR, "models", "whisper")
-
 qwen_model_instance = None
-whisper_model_instance = None
-
-WHISPER_MODEL_SIZE = os.environ.get("WHISPER_MODEL_SIZE", "base")
 
 def load_qwen_model():
     """
@@ -59,57 +54,19 @@ def load_qwen_model():
     return qwen_model_instance
 
 
-def load_whisper_model():
-    """
-    Load the Whisper model via faster-whisper.
-    """
-    global whisper_model_instance
-    if whisper_model_instance is not None:
-        return whisper_model_instance
-
-    try:
-        from faster_whisper import WhisperModel
-    except ImportError:
-        raise RuntimeError(
-            "faster-whisper is not installed. Please run `pip install faster-whisper`"
-        )
-
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    compute_type = "float16" if device == "cuda" else "int8"
-
-    os.makedirs(WHISPER_MODEL_DIR, exist_ok=True)
-
-    print(f"Loading Whisper model '{WHISPER_MODEL_SIZE}' on {device} (compute_type={compute_type})...")
-    print(f"Model cache dir: {WHISPER_MODEL_DIR}")
-
-    whisper_model_instance = WhisperModel(
-        WHISPER_MODEL_SIZE,
-        device=device,
-        compute_type=compute_type,
-        download_root=WHISPER_MODEL_DIR,
-    )
-    print(f"Whisper model '{WHISPER_MODEL_SIZE}' loaded successfully!")
-    return whisper_model_instance
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("Starting up and loading ASR models...")
+    print("Starting QuickSpeak backend and loading Qwen ASR model...")
 
     try:
         load_qwen_model()
     except Exception as e:
         print(f"Error loading Qwen model: {e}")
 
-    try:
-        load_whisper_model()
-    except Exception as e:
-        print(f"Error loading Whisper model: {e}")
-
     yield
     print("Shutting down...")
 
-app = FastAPI(title="Local ASR Backend (Qwen + Whisper)", lifespan=lifespan)
+app = FastAPI(title="QuickSpeak Backend (Qwen3-ASR)", version="1.0.1", lifespan=lifespan)
 
 class ModelData(BaseModel):
     id: str
@@ -123,7 +80,6 @@ async def list_models():
     return {
         "data": [
             {"id": "Qwen3-ASR-1.7B"},
-            {"id": "whisper-1"},
         ]
     }
 
@@ -230,45 +186,7 @@ async def chat_completions(req: ChatCompletionRequest):
         raise HTTPException(status_code=500, detail=f"Backend Error: {str(e)}")
 
 
-class TranscriptionRequest(BaseModel):
-    audio_data: str
-    format: str = "wav"
-
-@app.post("/v1/audio/transcriptions")
-async def audio_transcriptions(req: TranscriptionRequest):
-    """
-    Whisper ASR: OpenAI-compatible /v1/audio/transcriptions endpoint.
-    """
-    try:
-        whisper_model = load_whisper_model()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to load Whisper model: {str(e)}")
-
-    try:
-        audio_bytes = base64.b64decode(req.audio_data)
-
-        with tempfile.NamedTemporaryFile(delete=False, suffix=f".{req.format}") as tmp:
-            tmp.write(audio_bytes)
-            tmp_path = tmp.name
-
-        try:
-            print(f"Whisper processing audio: {tmp_path}")
-            segments, info = whisper_model.transcribe(tmp_path, beam_size=5)
-            transcription_text = " ".join(segment.text for segment in segments)
-            print(f"Whisper transcription: {transcription_text}")
-        finally:
-            if os.path.exists(tmp_path):
-                os.remove(tmp_path)
-
-        return {"text": transcription_text}
-
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Whisper Error: {str(e)}")
-
-
 if __name__ == "__main__":
-    print("Starting Local ASR server on http://localhost:8000")
-    print("Available models: Qwen3-ASR-1.7B, whisper-1")
+    print("Starting QuickSpeak backend on http://localhost:8000")
+    print("Available model: Qwen3-ASR-1.7B")
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)

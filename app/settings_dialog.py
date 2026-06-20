@@ -5,7 +5,7 @@ from PySide6.QtWidgets import (
     QMessageBox, QProgressBar, QTabWidget, QWidget
 )
 from PySide6.QtCore import Qt, QThread, Signal
-from config import APP_NAME, APP_VERSION, APP_AUTHOR
+from config import APP_NAME, APP_DISPLAY_NAME, APP_VERSION, APP_AUTHOR
 
 
 class MicTestThread(QThread):
@@ -326,16 +326,15 @@ class SettingsDialog(QDialog):
         self.combo_asr = QComboBox()
         self.combo_asr.addItem("豆包 API", "doubao")
         self.combo_asr.addItem("本地千问 (Qwen)", "qwen")
-        self.combo_asr.addItem("本地 Whisper", "whisper")
+        self.combo_asr.addItem("本地 Whisper（已舍弃）", "whisper_disabled")
+        whisper_item = self.combo_asr.model().item(2)
+        if whisper_item is not None:
+            whisper_item.setEnabled(False)
 
         # 设置当前选项
         current_provider = self.settings.get("asr_provider", "doubao")
-        current_model = self.settings.get("local_model", "qwen")
         if current_provider == "local":
-            if current_model == "whisper":
-                self.combo_asr.setCurrentIndex(2)
-            else:
-                self.combo_asr.setCurrentIndex(1)
+            self.combo_asr.setCurrentIndex(1)
         else:
             self.combo_asr.setCurrentIndex(0)
 
@@ -357,7 +356,7 @@ class SettingsDialog(QDialog):
         layout.setAlignment(Qt.AlignCenter)
 
         # 应用名称
-        title_label = QLabel(APP_NAME)
+        title_label = QLabel(f"{APP_DISPLAY_NAME} QuickSpeak")
         title_label.setStyleSheet("""
             font-size: 28px;
             font-weight: bold;
@@ -659,9 +658,6 @@ SOFTWARE."""
         elif asr_data == "qwen":
             self.result_settings["asr_provider"] = "local"
             self.result_settings["local_model"] = "qwen"
-        elif asr_data == "whisper":
-            self.result_settings["asr_provider"] = "local"
-            self.result_settings["local_model"] = "whisper"
 
         self.accept()
 

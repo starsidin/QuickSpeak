@@ -50,7 +50,7 @@ def create_icon():
     painter.setPen(QColor('white'))
     font = QFont('Segoe UI', 18, QFont.Bold)
     painter.setFont(font)
-    painter.drawText(pixmap.rect().adjusted(0, 50, 0, 0), Qt.AlignBottom | Qt.AlignHCenter, 'WriteVoiceDown')
+    painter.drawText(pixmap.rect().adjusted(0, 50, 0, 0), Qt.AlignBottom | Qt.AlignHCenter, 'QuickSpeak')
     
     painter.end()
     

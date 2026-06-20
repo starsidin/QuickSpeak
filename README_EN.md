@@ -1,4 +1,4 @@
-# WriteSpeakDown - ASR Desktop Floating Window v1.0.1
+# QuickSpeak - ASR Desktop Floating Window v1.0.1
 
 [中文版](README.md)
 

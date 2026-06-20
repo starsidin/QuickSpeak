@@ -13,7 +13,7 @@ from PySide6.QtGui import QIcon, QAction
 from config import (
     DOUBAO_API_KEY, TEMP_WAV_FILE, LOCAL_BACKEND_URL, ASR_PROVIDER, LOCAL_MODEL,
     SAVE_FOLDER, HOTKEY_ENABLED, HOTKEY_KEY, MICROPHONE_DEVICE, save_settings,
-    APP_NAME, APP_VERSION, APP_AUTHOR, TEMP_DIR, AUTO_SAVE_FILE
+    APP_NAME, APP_DISPLAY_NAME, APP_VERSION, APP_AUTHOR, TEMP_DIR, AUTO_SAVE_FILE
 )
 from clipboard_util import copy_to_clipboard
 from audio_recorder import AudioRecorder
@@ -35,7 +35,7 @@ class MainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle(f"{APP_NAME} v{APP_VERSION}")
+        self.setWindowTitle(f"{APP_DISPLAY_NAME} QuickSpeak v{APP_VERSION}")
         self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint | Qt.Window)
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.resize(350, 180)
@@ -235,7 +235,7 @@ class MainWindow(QMainWindow):
         main_layout.setSpacing(3)
 
         top_layout = QHBoxLayout()
-        title_label = QLabel("说记")
+        title_label = QLabel(APP_DISPLAY_NAME)
         title_label.setStyleSheet("font-size: 15px; font-weight: bold; color: #333333;")
         
         self.status_label = StatusLabel("正在初始化...")
@@ -257,13 +257,9 @@ class MainWindow(QMainWindow):
         self.combo_provider = QComboBox()
         self.combo_provider.addItem("豆包", "doubao")
         self.combo_provider.addItem("本地千问", "qwen")
-        self.combo_provider.addItem("本地Whisper", "whisper")
         self.combo_provider.hide()
         if ASR_PROVIDER == "local":
-            if LOCAL_MODEL == "whisper":
-                self.combo_provider.setCurrentIndex(2)
-            else:
-                self.combo_provider.setCurrentIndex(1)
+            self.combo_provider.setCurrentIndex(1)
         else:
             self.combo_provider.setCurrentIndex(0)
 
@@ -989,9 +985,6 @@ class MainWindow(QMainWindow):
         if provider_data == "qwen":
             self._switch_asr_client("local", model="qwen")
             self.status_label.setText("已切换至本地千问")
-        elif provider_data == "whisper":
-            self._switch_asr_client("local", model="whisper")
-            self.status_label.setText("已切换至本地Whisper")
         else:
             self._switch_asr_client("doubao")
             self.status_label.setText("已切换至豆包")
@@ -1002,7 +995,7 @@ class MainWindow(QMainWindow):
         provider_data = self.combo_provider.currentData() if hasattr(self, 'combo_provider') else "doubao"
         
         if is_ok:
-            if provider_data in ("qwen", "whisper"):
+            if provider_data == "qwen":
                 self.status_label.setText("本地后端连接正常")
             else:
                 self.status_label.setText("API 状态正常")
@@ -1015,7 +1008,7 @@ class MainWindow(QMainWindow):
             elif error_type == "timeout":
                 self.status_label.setText("连接超时，请检查网络")
             else:
-                if provider_data in ("qwen", "whisper"):
+                if provider_data == "qwen":
                     self.status_label.setText("本地后端未启动，请运行 run_backend.bat")
                 else:
                     self.status_label.setText("API 状态异常，请检查 API Key")
@@ -1099,9 +1092,6 @@ class MainWindow(QMainWindow):
             elif provider_data == "qwen":
                 current_settings["asr_provider"] = "local"
                 current_settings["local_model"] = "qwen"
-            elif provider_data == "whisper":
-                current_settings["asr_provider"] = "local"
-                current_settings["local_model"] = "whisper"
 
             dlg = SettingsDialog(self, current_settings)
             if dlg.exec() == SettingsDialog.Accepted:
@@ -1134,8 +1124,6 @@ class MainWindow(QMainWindow):
         self.combo_provider.blockSignals(True)
         if asr_provider == "doubao":
             self.combo_provider.setCurrentIndex(0)
-        elif local_model == "whisper":
-            self.combo_provider.setCurrentIndex(2)
         else:
             self.combo_provider.setCurrentIndex(1)
         self.combo_provider.blockSignals(False)
@@ -1144,9 +1132,6 @@ class MainWindow(QMainWindow):
         if asr_provider == "doubao":
             self._switch_asr_client("doubao")
             self.status_label.setText("已切换至豆包")
-        elif local_model == "whisper":
-            self._switch_asr_client("local", model="whisper")
-            self.status_label.setText("已切换至本地Whisper")
         else:
             self._switch_asr_client("local", model="qwen")
             self.status_label.setText("已切换至本地千问")

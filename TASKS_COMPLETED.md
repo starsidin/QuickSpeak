@@ -1,4 +1,4 @@
-# WriteVoiceDown 项目改进总结
+# QuickSpeak（说记）项目改进总结
 
 ## 已完成的任务
 
@@ -42,19 +42,19 @@
   - 在 `quit_app()` 中退出时清理临时文件
   - 清理 `data/temp/` 目录下的所有音频文件
 
-### 6. ✅ 统一产品名称：WriteVoiceDown
+### 6. ✅ 统一产品名称：QuickSpeak（说记）
 - **文件**: `config.py`
 - **实现内容**:
-  - 定义了 `APP_NAME = "WriteVoiceDown"`
+  - 定义了 `APP_NAME = "QuickSpeak"`
   - 所有窗口标题、标签都使用统一的名称
-  - 移除了旧的"快说"等不一致的命名
+  - 移除了其他不一致的命名
 
 ### 7. ✅ 增加正式图标、版本号、产品名称、作者信息
 - **文件**: `main.py`, `config.py`, `create_icon.py`
 - **实现内容**:
   - 创建了 `icon.png` 和 `icon.ico` 应用图标
-  - 定义了 `APP_VERSION = "1.0.0"`
-  - 定义了 `APP_AUTHOR = "WriteVoiceDown Team"`
+  - 定义了 `APP_VERSION = "1.0.1"`
+  - 定义了 `APP_AUTHOR = "Ranklee Studio"`
   - 在 `QApplication` 中设置了应用名称、版本、组织
   - 设置了应用图标
   - 系统托盘图标使用应用图标而不是默认图标

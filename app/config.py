@@ -59,6 +59,10 @@ def _load_raw_config():
 
 _raw_config = _load_raw_config()
 
+# Whisper 已舍弃：旧配置自动回退到 Qwen，避免升级后继续进入禁用路径。
+if _raw_config.get("local_model") == "whisper":
+    _raw_config["local_model"] = "qwen"
+
 # ---- 对外暴露的配置项 ----
 
 DOUBAO_API_KEY = _raw_config.get("doubao_api_key", "")
@@ -98,6 +102,7 @@ AUTO_SAVE_FILE = str(TEMP_DIR / "autosave_content.txt")  # 自动保存的创作
 
 # ---- 应用元信息 ----
 
-APP_NAME = "WriteVoiceDown"
-APP_VERSION = "1.0.0"
+APP_NAME = "QuickSpeak"
+APP_DISPLAY_NAME = "说记"
+APP_VERSION = "1.0.1"
 APP_AUTHOR = "Ranklee Studio"

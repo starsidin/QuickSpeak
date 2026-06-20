@@ -21,4 +21,4 @@ qwen-asr
 torch
 torchaudio
 modelscope
-faster-whisper
+huggingface_hub

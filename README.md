@@ -1,4 +1,4 @@
-# WriteSpeakDown - ASR 桌面悬浮窗 v1.0.1 
+# 说记 QuickSpeak - ASR 桌面悬浮窗 v1.0.1
 
 [English Version](README_EN.md)
 
